@@ -10,6 +10,7 @@ from datetime import datetime
 from dotenv import load_dotenv
 from src.utils.helper_utils import create_uuid_with_time
 from src.models.user_model import UserDetails
+from src.models.sats_model import SatsContract
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ COLLECTION_NAME_TRANSFERRED = os.environ.get("COLLECTION_NAME_TRANSFERRED")
 COLLECTION_NAME_LOGS = os.environ.get("COLLECTION_NAME_LOGS")
 COLLECTION_INIT_PAYMENT_LOGS = os.environ.get("COLLECTION_INIT_PAYMENT_LOGS")
 COLLECTION_PENDING_ENTRIES_LOGS = os.environ.get("COLLECTION_PENDING_ENTRIES_LOGS")
+COLLECTION_SATS_CONTRACTS = os.environ.get("COLLECTION_SATS_CONTRACTS")
 OK_LINK_API_KEY = os.environ.get("OK_LINK_API_KEY")
 OK_LINK_TOKEN_CONTRACT_ADDRESS = os.environ.get("OK_LINK_TOKEN_CONTRACT_ADDRESS")
 OK_LINK_CHAIN_ID = os.environ.get("OK_LINK_CHAIN_ID")
@@ -46,6 +48,7 @@ collection_controlled_tickers = db[COLLECTION_NAME_CONTROLLED_TOKENS]
 collection_logs = db[COLLECTION_NAME_LOGS]
 collection_init_payment_logs = db[COLLECTION_INIT_PAYMENT_LOGS]
 collection_pending_entries_logs = db[COLLECTION_PENDING_ENTRIES_LOGS]
+collection_sats_contracts = db[COLLECTION_SATS_CONTRACTS]
 
 homepage_data = {
     "total_deposits": 0,
@@ -387,6 +390,32 @@ def get_token_balance():
         except requests.RequestException as e:
             return jsonify({'error': str(e)}), 500  # Return an error response if the request fails
 
+@bapi.route('/sats/contract/check', methods=['GET'])
+def check_contract_deployed():
+    c_hash = request.args.get('c_hash')
+    con_hash = request.args.get('con_hash')
+    
+    result = collection_sats_contracts.find({'c_hash': c_hash, 'con_hash': con_hash})
+    result_list = list(result)
+    if result_list:
+        return jsonify({'exists': True})
+    else:
+        return jsonify({'exists': False})
+
+@bapi.route('/sats/contract/add', methods=['POST'])
+def add_contract_deployed():
+    data = request.json
+
+    c_hash = data.get('c_hash', {})
+    con_hash = data.get('con_hash', {})
+
+    _sats_data = {}
+    _sats_data["c_hash"] = c_hash
+    _sats_data["con_hash"] = con_hash
+
+    sats_contract = SatsContract(**_sats_data)
+    response_data = {"contract_details": sats_contract.to_dict()}
+    return jsonify(response_data)
 
 def execute_bitcoin_cli(command):
     result = subprocess.check_output(command.split(), universal_newlines=True)
